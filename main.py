@@ -1,9 +1,9 @@
 import os
-import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant
 from aiohttp import web
+import asyncio
 
 # Loading configuration safely from Environment Variables
 API_ID = int(os.environ.get("API_ID", "0"))
@@ -124,7 +124,7 @@ async def handle_video(client, message):
         reply_markup=get_video_menu()
     )
 
-# Keep-Alive Web Server for Render
+# Web server for Render Keep-Alive
 async def web_server():
     routes = web.RouteTableDef()
     @routes.get("/")
@@ -139,21 +139,15 @@ async def web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
-# Main function to run Web Server and Pyrogram Bot smoothly together
-async def main():
-    # Start the web server first
+# Background task to run web server alongside bot
+async def start_services():
     await web_server()
-    print("Web Server Started Successfully!")
-    
-    # Start the Pyrogram bot using idle/run method properly
-    await app.start()
-    print("Telegram Bot Started Successfully!")
-    
-    # Keep the script running
-    await asyncio.Event().wait()
+    print("Web server started successfully!")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("Bot Stopped!")
+    # Start the keep-alive web server in background safely
+    loop = asyncio.get_event_loop()
+    loop.create_task(start_services())
+    
+    # Run Pyrogram bot natively without event loop conflict
+    app.run()
