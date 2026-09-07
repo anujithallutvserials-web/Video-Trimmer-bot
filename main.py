@@ -1,6 +1,6 @@
 import os
 import asyncio
-from pyrogram import Client, filters, idle
+from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant
 from aiohttp import web
@@ -10,7 +10,7 @@ API_ID = int(os.environ.get("API_ID", "0"))
 API_HASH = os.environ.get("API_HASH", "")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
-FORCE_SUB_CHANNEL = "Allutvserials"  # Force subscription channel username
+FORCE_SUB_CHANNEL = "Allutvserials"
 
 # Initialize the Bot Client
 app = Client("video_trimmer_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -60,7 +60,7 @@ async def is_subscribed(client, user_id):
     except Exception:
         return True
 
-# /start Command Handler with Force Subscription and Welcome Message
+# /start Command Handler
 @app.on_message(filters.command("start"))
 async def start_command(client, message):
     user_id = message.from_user.id
@@ -91,7 +91,7 @@ async def start_command(client, message):
     
     await message.reply(welcome_text, reply_markup=keyboard)
 
-# Handle incoming videos and documents with Force Sub & Task Limitations
+# Handle incoming videos and documents
 @app.on_message(filters.video | filters.document)
 async def handle_video(client, message):
     user_id = message.from_user.id
@@ -124,7 +124,7 @@ async def handle_video(client, message):
         reply_markup=get_video_menu()
     )
 
-# Keep-Alive Web Server to prevent sleep on Render
+# Keep-Alive Web Server for Render
 async def web_server():
     routes = web.RouteTableDef()
     @routes.get("/")
@@ -139,11 +139,21 @@ async def web_server():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
 
+# Main function to run Web Server and Pyrogram Bot smoothly together
 async def main():
+    # Start the web server first
     await web_server()
+    print("Web Server Started Successfully!")
+    
+    # Start the Pyrogram bot using idle/run method properly
     await app.start()
-    print("Bot & Web Server Started Successfully!")
-    await idle()
+    print("Telegram Bot Started Successfully!")
+    
+    # Keep the script running
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    app.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("Bot Stopped!")
