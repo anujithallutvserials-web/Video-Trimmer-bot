@@ -76,7 +76,7 @@ MAX_USER_TASKS = 2
 
 def main():
     offset = 0
-    print("Pure Python Telegram Bot Started Successfully with All Features!")
+    print("Pure Python Telegram Bot Started Successfully!")
     
     while True:
         try:
@@ -96,10 +96,12 @@ def main():
                         
                         # Check Force Subscription
                         if not check_subscription(user_id):
+                            # നിങ്ങളുടെ ബോട്ടിന്റെ യൂസർനെയിം താഴെ കൊടുക്കുക (ഉദാഹരണത്തിന്: t.me/YourBotUsername)
+                            bot_username = "AlluVideoBot" # ഇവിടെ നിങ്ങളുടെ ബോട്ടിന്റെ യൂസർനെയിം നൽകുക
                             keyboard = {
                                 "inline_keyboard": [
                                     [{"text": "📢 Join Channel", "url": f"https://t.me/{FORCE_SUB_CHANNEL}"}],
-                                    [{"text": "🔄 Try Again", "url": f"https://t.me/"}]
+                                    [{"text": "🔄 Try Again", "url": f"https://t.me/{bot_username}?start=start"}]
                                 ]
                             }
                             send_message(chat_id, f"⚠️ **Access Denied!**\nPlease join our update channel @{FORCE_SUB_CHANNEL} to use this bot.", reply_markup=keyboard)
@@ -142,7 +144,6 @@ def main():
                         chat_id = cq["message"]["chat"]["id"]
                         data = cq["data"]
                         
-                        # Answer callback query to remove loading animation on button
                         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery", json={"callback_query_id": cq_id, "text": f"Selected: {data}"})
                         send_message(chat_id, f"✅ You selected option: **{data}**")
                             
@@ -152,7 +153,5 @@ def main():
 
 if __name__ == "__main__":
     import threading
-    # Run Flask server in background thread for Render
     threading.Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))).start()
-    # Run Bot Main Loop
     main()
