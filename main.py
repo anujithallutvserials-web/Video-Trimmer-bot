@@ -3,7 +3,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant
 from aiohttp import web
-import asyncio
+import threading
 
 # Loading configuration safely from Environment Variables
 API_ID = int(os.environ.get("API_ID", "0"))
@@ -124,8 +124,8 @@ async def handle_video(client, message):
         reply_markup=get_video_menu()
     )
 
-# Web server for Render Keep-Alive
-async def web_server():
+# Simple Web Server using aiohttp for Render Keep-Alive
+def run_web_server():
     routes = web.RouteTableDef()
     @routes.get("/")
     async def hello(request):
@@ -133,21 +133,15 @@ async def web_server():
     
     app_web = web.Application()
     app_web.add_routes(routes)
-    runner = web.AppRunner(app_web)
-    await runner.setup()
     port = int(os.environ.get("PORT", 8080))
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-
-# Background task to run web server alongside bot
-async def start_services():
-    await web_server()
-    print("Web server started successfully!")
+    web.run_app(app_web, host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    # Start the keep-alive web server in background safely
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_services())
+    # Run Web Server in a separate background thread to avoid event loop conflicts
+    web_thread = threading.Thread(target=run_web_server)
+    web_thread.daemon = True
+    web_thread.start()
+    print("Web Server Started in Background Thread!")
     
-    # Run Pyrogram bot natively without event loop conflict
+    # Run Pyrogram Bot cleanly
     app.run()
