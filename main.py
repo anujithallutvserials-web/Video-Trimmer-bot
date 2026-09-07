@@ -76,7 +76,7 @@ MAX_USER_TASKS = 2
 
 def main():
     offset = 0
-    print("Pure Python Telegram Bot Started Successfully!")
+    print("Pure Python Telegram Bot with Working Buttons Started Successfully!")
     
     while True:
         try:
@@ -96,8 +96,7 @@ def main():
                         
                         # Check Force Subscription
                         if not check_subscription(user_id):
-                            # നിങ്ങളുടെ ബോട്ടിന്റെ യൂസർനെയിം താഴെ കൊടുക്കുക (ഉദാഹരണത്തിന്: t.me/YourBotUsername)
-                            bot_username = "AlluVideoBot" # ഇവിടെ നിങ്ങളുടെ ബോട്ടിന്റെ യൂസർനെയിം നൽകുക
+                            bot_username = "AlluVideoBot"  # നിങ്ങളുടെ ബോട്ടിന്റെ യൂസർനെയിം ഇവിടെ നൽകുക
                             keyboard = {
                                 "inline_keyboard": [
                                     [{"text": "📢 Join Channel", "url": f"https://t.me/{FORCE_SUB_CHANNEL}"}],
@@ -137,15 +136,47 @@ def main():
                             
                             send_message(chat_id, "🎬 **Video received successfully!** Please choose your required option from below:", reply_markup=get_video_menu())
                     
-                    # Handle Callback Queries (Button clicks)
+                    # Handle Callback Queries (Button clicks action handler)
                     elif "callback_query" in update:
                         cq = update["callback_query"]
                         cq_id = cq["id"]
                         chat_id = cq["message"]["chat"]["id"]
                         data = cq["data"]
                         
-                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery", json={"callback_query_id": cq_id, "text": f"Selected: {data}"})
-                        send_message(chat_id, f"✅ You selected option: **{data}**")
+                        # ബട്ടൺ ലോഡിംഗ് മാറ്റാൻ (Popup / Alert നൽകാൻ)
+                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery", json={
+                            "callback_query_id": cq_id, 
+                            "text": f"Processing: {data}"
+                        })
+                        
+                        # ഓരോ ബട്ടണിനും അനുസരിച്ചുള്ള മറുപടികൾ
+                        responses = {
+                            "thumb_extract": "🖼️ **Thumb Extractor** selected. Send your video or file to extract thumbnail.",
+                            "caption_edit": "✏️ **Caption Editor** selected. Send the new caption for your file.",
+                            "meta_edit": "📋 **Metadata Editor** selected. Send file to edit metadata.",
+                            "stream_map": "🔀 **Stream Mapper** selected. Processing stream mapping...",
+                            "stream_remove": "❌ **Stream Remover** selected. Send file to remove streams.",
+                            "stream_extract": "📥 **Stream Extractor** selected. Extracting streams...",
+                            "video_trim": "✂️ **Video Trimmer** selected. Send start and end times (e.g., 00:10-01:00).",
+                            "video_merge": "➕ **Video Merger** selected. Send the videos you want to merge one by one.",
+                            "remove_audio": "🔇 **Remove Audio** selected. Processing audio removal...",
+                            "merge_AV": "🔀 **Merge Audio & Video** selected. Send audio and video files.",
+                            "audio_conv": "🎵 **Audio Converter** selected. Converting audio format...",
+                            "video_split": "✂️ **Videos Splitter** selected. Splitting video file...",
+                            "screenshots": "🖼️ **Screenshots** selected. Generating screenshots...",
+                            "manual_shots": "📸 **Manual Shots** selected. Send timestamp for screenshot.",
+                            "gen_sample": "📊 **Generate Sample** selected. Creating sample video clip...",
+                            "vid_to_audio": "🔊 **Video To Audio** selected. Converting video to audio...",
+                            "vid_optimize": "⚡ **Video Optimizer** selected. Optimizing video size...",
+                            "sub_merge": "💬 **Subtitle Merger** selected. Send subtitle file (.srt) and video.",
+                            "vid_conv": "🔄 **Video Converter** selected. Converting video format...",
+                            "vid_rename": "✏️ **Video Renamer** selected. Send the new filename.",
+                            "media_info": "ℹ️ **Media Information** selected. Fetching media details...",
+                            "create_archive": "📦 **Create Archive** selected. Creating zip/archive file..."
+                        }
+                        
+                        reply_text = responses.get(data, f"✅ You selected option: **{data}**")
+                        send_message(chat_id, reply_text)
                             
         except Exception as e:
             print(f"Polling Error: {e}")
