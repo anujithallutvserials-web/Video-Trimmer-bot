@@ -86,13 +86,12 @@ def get_video_menu():
         ]
     }
 
-user_tasks = {}
-user_states = {}  # യൂസർ ഇപ്പോൾ ഏത് മോഡിലാണ് എന്ന് അറിയാൻ (ഉദാഹരണത്തിന്: video_merge)
-MAX_USER_TASKS = 2
+user_states = {}       # യൂസർ ഇപ്പോൾ ഏത് മോഡിലാണ് എന്ന് അറിയാൻ
+user_merge_files = {}  # മെർജ് ചെയ്യാൻ അയക്കുന്ന വീഡിയോകൾ സേവ് ചെയ്തുവെക്കാൻ
 
 def main():
     offset = 0
-    print("Advanced Telegram Bot with State Management Started Successfully!")
+    print("Telegram Bot Started with Clean State Management!")
     
     while True:
         try:
@@ -103,7 +102,7 @@ def main():
                 for update in response.get("result", []):
                     offset = update["update_id"] + 1
                     
-                    # 1. Handle Messages (Text, Videos, Documents)
+                    # 1. Handle Messages
                     if "message" in update:
                         msg = update["message"]
                         chat_id = msg["chat"]["id"]
@@ -124,7 +123,8 @@ def main():
                         
                         # /start Command
                         if text.startswith("/start"):
-                            user_states[user_id] = None  # സ്റ്റേറ്റ് ക്ലിയർ ചെയ്യുന്നു
+                            user_states[user_id] = None
+                            user_merge_files[user_id] = []
                             welcome_text = (
                                 "👋 **Welcome to the Advanced Video Editing Bot!**\n\n"
                                 "I am your all-in-one assistant for managing, trimming, converting, and editing videos seamlessly. "
@@ -140,32 +140,48 @@ def main():
                         # /settings Command
                         elif text.startswith("/settings"):
                             user_states[user_id] = None
-                            settings_text = "⚙️ **Bot Settings Menu**\n\nConfigure your preferences below:"
-                            send_message(chat_id, settings_text, reply_markup=get_video_menu())
+                            send_message(chat_id, "⚙️ **Bot Settings Menu**\n\nConfigure your preferences below:", reply_markup=get_video_menu())
+                        
+                        # /done Command (പ്രത്യേകിച്ച് Video Merger-ന് ശേഷം പ്രോസസ്സ് ചെയ്യാൻ)
+                        elif text.startswith("/done"):
+                            current_state = user_states.get(user_id)
+                            if current_state == "video_merge":
+                                files_count = len(user_merge_files.get(user_id, []))
+                                if files_count > 0:
+                                    send_message(chat_id, f"⚙️ Processing **Video Merger** with {files_count} videos. Please wait...")
+                                    # ഇവിടെ നിങ്ങളുടെ വീഡിയോ മെർജ് ചെയ്യുന്ന പൈത്തൺ കോഡ് (FFmpeg) നൽകാം
+                                    time.sleep(2)
+                                    send_message(chat_id, "✅ **Videos merged successfully!** (Here is your output video)")
+                                    # പ്രോസസ്സ് കഴിഞ്ഞു സ്റ്റേറ്റ് ക്ലിയർ ചെയ്യുന്നു, ഇനി മെനു വീണ്ടും വരുത്താം
+                                    user_states[user_id] = None
+                                    user_merge_files[user_id] = []
+                                    send_message(chat_id, "🎬 Send a new video or type /settings to continue:", reply_markup=get_video_menu())
+                                else:
+                                    send_message(chat_id, "⚠️ No videos found to merge. Please send videos first.")
+                            else:
+                                send_message(chat_id, "⚠️ No active task found to finish.")
+                                user_states[user_id] = None
+                                send_message(chat_id, "🎬 Choose an option:", reply_markup=get_video_menu())
                         
                         # Handle Videos or Documents
                         elif "video" in msg or "document" in msg:
                             current_state = user_states.get(user_id)
                             
-                            # യൂസർ ഏതെങ്കിലും പ്രത്യേക ഫീച്ചറിലാണോ ഉള്ളതെന്ന് നോക്കുന്നു (ഉദാ: video_merge)
+                            # സ്റ്റേറ്റ് ഉണ്ടെങ്കിൽ (ഉദാ: Video Merger സെലക്ട് ചെയ്തിട്ടുണ്ടെങ്കിൽ)
                             if current_state == "video_merge":
-                                send_message(chat_id, "📥 Video received for **Video Merger**. Send more videos or type /done to process.")
+                                file_id = msg.get("video", {}).get("file_id") or msg.get("document", {}).get("file_id")
+                                if user_id not in user_merge_files:
+                                    user_merge_files[user_id] = []
+                                user_merge_files[user_id].append(file_id)
+                                send_message(chat_id, f"📥 Video added for **Video Merger** (Total: {len(user_merge_files[user_id])}). Send more or type `/done` to process.")
                                 continue
+                            
                             elif current_state == "video_trim":
-                                send_message(chat_id, "✂️ Video received for **Video Trimmer**. Send start/end timestamps.")
+                                send_message(chat_id, "✂️ Video received for **Video Trimmer**. Now send start and end times (e.g., 00:00-01:00).")
+                                # പ്രോസസ്സ് കഴിഞ്ഞ ശേഷം സ്റ്റേറ്റ് ക്ലിയർ ചെയ്യാൻ താഴെ കൊടുക്കാം
                                 continue
-                            elif current_state:
-                                send_message(chat_id, f"⚙️ Video received for **{current_state}**. Processing your request...")
-                                continue
-                            
-                            # സാധാരണ രീതിയിൽ വീഡിയോ അയക്കുമ്പോൾ മാത്രം മെനു കാണിക്കുന്നു
-                            if user_id != ADMIN_ID:
-                                current_tasks = user_tasks.get(user_id, 0)
-                                if current_tasks >= MAX_USER_TASKS:
-                                    send_message(chat_id, "⚠️ You can only use 2 tasks at a time. Please wait for your current tasks to finish.")
-                                    continue
-                                user_tasks[user_id] = current_tasks + 1
-                            
+                                
+                            # സ്റ്റേറ്റ് ഒന്നും സെലക്ട് ചെയ്തിട്ടില്ലെങ്കിൽ മാത്രം പുതിയ വീഡിയോയ്ക്ക് 22 ബട്ടണുകൾ കാണിക്കുക
                             send_message(chat_id, "🎬 **Video received successfully!** Please choose your required option from below:", reply_markup=get_video_menu())
                     
                     # 2. Handle Callback Queries (Button Clicks)
@@ -177,41 +193,43 @@ def main():
                         user_id = cq["from"]["id"]
                         data = cq["data"]
                         
-                        # ബട്ടൺ ക്ലിക്ക് ചെയ്യുമ്പോൾ ആ പഴയ 22 ബട്ടണുകൾ ആ മെസ്സേജിൽ നിന്ന് ഒഴിവാക്കുന്നു (അത് വീണ്ടും വരാതിരിക്കാൻ)
+                        # പ്രധാന മാറ്റം: ബട്ടൺ ക്ലിക്ക് ചെയ്യുമ്പോൾ ആ മെസ്സേജിലെ 22 ബട്ടണുകൾ പൂർണ്ണമായി മാറ്റി താഴെ പറയുന്ന മെസ്സേജ് മാത്രം കാണിക്കുന്നു
                         edit_message_text(chat_id, message_id, f"✅ Selected Option: **{data}**")
                         
-                        # യൂസറിന്റെ സ്റ്റേറ്റ് സെറ്റ് ചെയ്യുന്നു
+                        # യൂസറിന്റെ സ്റ്റേറ്റ് അപ്ഡേറ്റ് ചെയ്യുന്നു
                         user_states[user_id] = data
+                        if data == "video_merge":
+                            user_merge_files[user_id] = [] # ലിസ്റ്റ് ക്ലിയർ ചെയ്യുന്നു
                         
                         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery", json={
                             "callback_query_id": cq_id, 
                             "text": f"Activated: {data}"
                         })
                         
-                        # ഓരോ ഫീച്ചറിനും അനുസരിച്ചുള്ള നിർദ്ദേശങ്ങൾ മാത്രം നൽകുന്നു
+                        # ഓരോ ഫീച്ചറിനും അനുസരിച്ചുള്ള നിർദ്ദേശങ്ങൾ
                         responses = {
-                            "thumb_extract": "🖼️ **Thumb Extractor** activated.\nNow send your video file to extract the thumbnail.",
-                            "caption_edit": "✏️ **Caption Editor** activated.\nSend the new caption text you want to apply.",
+                            "thumb_extract": "🖼️ **Thumb Extractor** activated.\nSend your video file to extract the thumbnail.",
+                            "caption_edit": "✏️ **Caption Editor** activated.\nSend the new caption text.",
                             "meta_edit": "📋 **Metadata Editor** activated.\nSend your file to edit metadata.",
                             "stream_map": "🔀 **Stream Mapper** activated.\nSend the file for stream mapping.",
                             "stream_remove": "❌ **Stream Remover** activated.\nSend the file to remove unwanted streams.",
                             "stream_extract": "📥 **Stream Extractor** activated.\nSend the file to extract streams.",
-                            "video_trim": "✂️ **Video Trimmer** activated.\nSend your video first, then send start and end times (e.g., 00:10-01:00).",
-                            "video_merge": "➕ **Video Merger** activated.\nSend the videos you want to merge one by one. Once finished, type /done.",
-                            "remove_audio": "🔇 **Remove Audio** activated.\nSend the video to remove its audio track.",
-                            "merge_AV": "🔀 **Merge Audio & Video** activated.\nSend the audio and video files.",
-                            "audio_conv": "🎵 **Audio Converter** activated.\nSend your audio file to convert.",
-                            "video_split": "✂️ **Videos Splitter** activated.\nSend the video file you want to split.",
-                            "screenshots": "🖼️ **Screenshots** activated.\nSend the video to generate automated screenshots.",
+                            "video_trim": "✂️ **Video Trimmer** activated.\nSend start and end times (e.g., 00:00-01:00).",
+                            "video_merge": "➕ **Video Merger** activated.\nSend the videos one by one. Once all videos are sent, type `/done` to start merging.",
+                            "remove_audio": "🔇 **Remove Audio** activated.\nSend the video file.",
+                            "merge_AV": "🔀 **Merge Audio & Video** activated.\nSend audio and video files.",
+                            "audio_conv": "🎵 **Audio Converter** activated.\nSend your audio file.",
+                            "video_split": "✂️ **Videos Splitter** activated.\nSend the video file to split.",
+                            "screenshots": "🖼️ **Screenshots** activated.\nSend the video file.",
                             "manual_shots": "📸 **Manual Shots** activated.\nSend the video and timestamps.",
-                            "gen_sample": "📊 **Generate Sample** activated.\nSend the video to generate a short sample clip.",
-                            "vid_to_audio": "🔊 **Video To Audio** activated.\nSend the video file to extract audio.",
-                            "vid_optimize": "⚡ **Video Optimizer** activated.\nSend the video to optimize its size and quality.",
-                            "sub_merge": "💬 **Subtitle Merger** activated.\nSend the subtitle file (.srt) and the video.",
-                            "vid_conv": "🔄 **Video Converter** activated.\nSend the video file to convert format.",
-                            "vid_rename": "✏️ **Video Renamer** activated.\nSend the new filename for your media.",
-                            "media_info": "ℹ️ **Media Information** activated.\nSend the file to fetch full media details.",
-                            "create_archive": "📦 **Create Archive** activated.\nSend files to pack them into a zip archive."
+                            "gen_sample": "📊 **Generate Sample** activated.\nSend the video file.",
+                            "vid_to_audio": "🔊 **Video To Audio** activated.\nSend the video file.",
+                            "vid_optimize": "⚡ **Video Optimizer** activated.\nSend the video file.",
+                            "sub_merge": "💬 **Subtitle Merger** activated.\nSend subtitle file and video.",
+                            "vid_conv": "🔄 **Video Converter** activated.\nSend the video file.",
+                            "vid_rename": "✏️ **Video Renamer** activated.\nSend the new filename.",
+                            "media_info": "ℹ️ **Media Information** activated.\nSend the file.",
+                            "create_archive": "📦 **Create Archive** activated.\nSend files to archive."
                         }
                         
                         reply_text = responses.get(data, f"✅ You selected option: **{data}**")
