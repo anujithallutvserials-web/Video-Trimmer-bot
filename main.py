@@ -1,6 +1,6 @@
 import os
 import asyncio
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant
 from aiohttp import web
@@ -143,7 +143,7 @@ async def main():
     await web_server()
     await app.start()
     print("Bot & Web Server Started Successfully!")
-    asyncio.Event().wait()
+    await idle()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    app.run(main())
