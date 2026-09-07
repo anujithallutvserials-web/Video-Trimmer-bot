@@ -2,8 +2,6 @@ import os
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import UserNotParticipant
-from aiohttp import web
-import threading
 
 # Loading configuration safely from Environment Variables
 API_ID = int(os.environ.get("API_ID", "0"))
@@ -124,24 +122,6 @@ async def handle_video(client, message):
         reply_markup=get_video_menu()
     )
 
-# Simple Web Server using aiohttp for Render Keep-Alive
-def run_web_server():
-    routes = web.RouteTableDef()
-    @routes.get("/")
-    async def hello(request):
-        return web.Response(text="Bot is running and alive!")
-    
-    app_web = web.Application()
-    app_web.add_routes(routes)
-    port = int(os.environ.get("PORT", 8080))
-    web.run_app(app_web, host="0.0.0.0", port=port)
-
 if __name__ == "__main__":
-    # Run Web Server in a separate background thread to avoid event loop conflicts
-    web_thread = threading.Thread(target=run_web_server)
-    web_thread.daemon = True
-    web_thread.start()
-    print("Web Server Started in Background Thread!")
-    
-    # Run Pyrogram Bot cleanly
+    print("Starting Telegram Bot...")
     app.run()
